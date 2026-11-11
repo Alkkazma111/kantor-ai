@@ -68,16 +68,19 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 <nav><button class="on" data-t="k" onclick="tab('k')"><span>🏢</span>Kantor</button><button data-t="w" onclick="tab('w')"><span>👥</span>Pekerja</button><button data-t="t" onclick="tab('t')"><span>📋</span>Tugas</button><button data-t="a" onclick="tab('a')"><span>⚙️</span>Atur</button></nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-/* ====== ISI BAGIAN INI (kosongkan = mode demo tanpa login) ====== */
-const CFG={URL:"",KEY:"",EMAIL:""};
-/* ================================================================ */
+/* Konfigurasi Firebase (kosongkan apiKey = mode demo tanpa login) */
+const CFG={apiKey:"AIzaSyBTeKDNYv__H0hvaN9bNHlymBqxmrnaVVs",authDomain:"kantor-ai-fahar.firebaseapp.com",projectId:"kantor-ai-fahar",appId:"1:881690923250:web:84b6daf755dbefb004406b",EMAIL:"muhammadfaharalkabir@gmail.com"};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let S={w:[],t:[],h:[9,17]};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem('kantor')||'{}'))}catch(e){}
-const save=()=>{try{localStorage.setItem('kantor',JSON.stringify(S))}catch(e){}};
+let db,auth,tm;
+const save=()=>{try{localStorage.setItem('kantor',JSON.stringify(S))}catch(e){}
+  if(db){clearTimeout(tm);tm=setTimeout(()=>db.collection('kantor').doc('main').set(JSON.parse(JSON.stringify(S))).catch(e=>console.error(e)),800)}};
 const P={groq:["https://api.groq.com/openai/v1/chat/completions","llama-3.3-70b-versatile"],
 openrouter:["https://openrouter.ai/api/v1/chat/completions","meta-llama/llama-3.3-70b-instruct:free"],
 cerebras:["https://api.cerebras.ai/v1/chat/completions","llama3.1-8b"],
@@ -89,21 +92,24 @@ const day=()=>new Date().toLocaleDateString('sv');
 const inWork=()=>{const d=new Date(),h=d.getHours()+d.getMinutes()/60;return h>=S.h[0]&&h<S.h[1]};
 const hu=w=>Math.round((w.id%97)/97*360);
 
-/* ---- login ---- */
-let sb,started=0;
+/* ---- login Google & penyimpanan online (Firebase) ---- */
+let started=0;
 function boot(){
-  if(!CFG.URL){$('lo').hidden=true;start();return}
-  sb=supabase.createClient(CFG.URL,CFG.KEY);
-  sb.auth.getSession().then(r=>gate(r.data.session));
-  sb.auth.onAuthStateChange((_,s)=>gate(s));
+  if(!CFG.apiKey){$('lo').hidden=true;start();return}
+  firebase.initializeApp({apiKey:CFG.apiKey,authDomain:CFG.authDomain,projectId:CFG.projectId,appId:CFG.appId});
+  auth=firebase.auth();db=firebase.firestore();auth.onAuthStateChanged(gate);
 }
-function gate(s){
-  if(!s){$('login').hidden=false;return}
-  if((s.user.email||'').toLowerCase()!==CFG.EMAIL.toLowerCase()){$('lmsg').textContent='Email '+s.user.email+' tidak diizinkan.';sb.auth.signOut();return}
-  $('login').hidden=true;start();
+function gate(u){
+  if(!u){$('login').hidden=false;return}
+  if((u.email||'').toLowerCase()!==CFG.EMAIL.toLowerCase()){$('lmsg').textContent='Email '+u.email+' tidak diizinkan.';auth.signOut();return}
+  if(started)return;$('lmsg').textContent='Memuat data...';
+  db.collection('kantor').doc('main').get().then(d=>{
+    if(d.exists){S=Object.assign({w:[],t:[],h:[9,17]},d.data());S.w.forEach(w=>w.busy=0);S.t.forEach(t=>{if(t.s=='jalan')t.s='antri'})}else save();
+    $('login').hidden=true;start();
+  }).catch(e=>{$('lmsg').textContent='Gagal memuat data: '+e.message})
 }
-const gl=()=>sb&&sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});
-const out=()=>sb&&sb.auth.signOut();
+const gl=()=>auth&&auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>$('lmsg').textContent=e.message);
+const out=()=>auth&&auth.signOut().then(()=>location.reload());
 
 /* ---- pekerja & tugas ---- */
 let LVSEL='bodoh';
