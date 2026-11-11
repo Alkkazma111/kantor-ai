@@ -81,7 +81,7 @@ try{S=Object.assign(S,JSON.parse(localStorage.getItem('kantor')||'{}'))}catch(e)
 let db,auth,tm;
 const save=()=>{try{localStorage.setItem('kantor',JSON.stringify(S))}catch(e){}
   if(db){clearTimeout(tm);tm=setTimeout(()=>db.collection('kantor').doc('main').set(JSON.parse(JSON.stringify(S))).catch(e=>console.error(e)),800)}};
-const P={groq:["https://api.groq.com/openai/v1/chat/completions","llama-3.3-70b-versatile"],
+const P={groq:["https://api.groq.com/openai/v1/chat/completions","openai/gpt-oss-120b"],
 openrouter:["https://openrouter.ai/api/v1/chat/completions","meta-llama/llama-3.3-70b-instruct:free"],
 cerebras:["https://api.cerebras.ai/v1/chat/completions","llama3.1-8b"],
 gemini:["https://generativelanguage.googleapis.com/v1beta/openai/chat/completions","gemini-2.5-flash"],
@@ -123,6 +123,7 @@ function addW(){
   ['n','jb','ky'].forEach(i=>$(i).value='');$('af').hidden=true;save();tick();
 }
 function delW(id){if(!confirm('Buang pekerja ini beserta tugasnya?'))return;S.w=S.w.filter(w=>w.id!=id);S.t=S.t.filter(t=>t.wid!=id);save();ui()}
+function mdl(id){const w=S.w.find(w=>w.id==id),m=prompt('Nama model baru untuk '+w.name+':',w.model);if(m&&m.trim()){w.model=m.trim();save();ui()}}
 function wake(id){S.w.find(w=>w.id==id).used=0;save();tick()}
 function addT(){
   const t=$('tt').value.trim(),w=$('tw').value;
@@ -157,12 +158,12 @@ function tick(){
 let sig='';
 function ui(){
   $('clk').textContent='🕘 '+new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+' · '+(inWork()?'Jam kerja':'Waktu belajar');
-  const k=JSON.stringify([S.w.map(w=>[w.id,w.st,w.used,w.busy]),S.t]);if(k==sig)return;sig=k;
+  const k=JSON.stringify([S.w.map(w=>[w.id,w.st,w.used,w.busy,w.model]),S.t]);if(k==sig)return;sig=k;
   $('ws').innerHTML=S.w.length?S.w.map(w=>`<div class="w" onclick="foc(${w.id})"><div class="av" style="background:hsl(${hu(w)},50%,50%)">${esc(w.name[0].toUpperCase())}</div>
     <div class="r1"><div class="t"><b>${esc(w.name)}</b><span class="chip ${w.st}">${IC[w.st]} ${w.st}</span></div>
-    <div class="m">${LB[w.lv]} · ${esc(w.job)}</div><div class="bar"><i style="width:${Math.max(0,100-100*w.used/w.limit)}%"></i></div>
+    <div class="m">${LB[w.lv]} · ${esc(w.job)}<br>${w.prov}: ${esc(w.model)}</div><div class="bar"><i style="width:${Math.max(0,100-100*w.used/w.limit)}%"></i></div>
     <div class="m">Tenaga ${Math.max(0,w.limit-w.used)} dari ${w.limit}</div>
-    <div class="acts">${w.st=='istirahat'?`<button class="g" onclick="event.stopPropagation();wake(${w.id})">Bangunkan</button>`:''}<button class="r" onclick="event.stopPropagation();delW(${w.id})">Buang</button></div></div></div>`).join(''):'<p class="m">Belum ada pekerja. Tekan + Tambah untuk membuat yang pertama.</p>';
+    <div class="acts">${w.st=='istirahat'?`<button class="g" onclick="event.stopPropagation();wake(${w.id})">Bangunkan</button>`:''}<button class="g" onclick="event.stopPropagation();mdl(${w.id})">Ganti model</button><button class="r" onclick="event.stopPropagation();delW(${w.id})">Buang</button></div></div></div>`).join(''):'<p class="m">Belum ada pekerja. Tekan + Tambah untuk membuat yang pertama.</p>';
   const v=$('tw').value;$('tw').innerHTML=S.w.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join('');$('tw').value=v;
   const L={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal'};
   $('ts').innerHTML=S.t.length?S.t.map(t=>{const w=S.w.find(w=>w.id==t.wid);return`<div class="w"><div class="r1"><div class="t"><b>${w?esc(w.name):'(dibuang)'}</b><span class="m">${L[t.s]}</span></div>
