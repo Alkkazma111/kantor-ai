@@ -36,6 +36,16 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 #login{position:fixed;inset:0;z-index:9;background:var(--sh);display:grid;place-content:center;text-align:center;padding:20px}
 .pn{position:fixed;top:calc(56px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;background:rgba(29,43,58,.88);color:#fff;border-radius:99px;padding:3px;transition:background .3s}
 .pn.bos{background:#b3262d}.pn b{min-width:140px;text-align:center;font-size:14px}.pn button{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);padding:0;font-size:20px}
+.res{background:#eef2f6;border-radius:10px;padding:10px;margin:6px 0;max-height:340px;overflow:auto;font-size:14px}
+.res p{margin:4px 0}.res .li{margin:2px 0 2px 6px}.res h4{margin:10px 0 4px;font-size:15px}.res .h1,.res .h2{font-size:16px;border-bottom:1px solid var(--ln);padding-bottom:3px}
+.tw{overflow:auto;margin:6px 0}.res table{border-collapse:collapse;font-size:12.5px}.res th,.res td{border:1px solid var(--ln);padding:4px 7px;text-align:left;vertical-align:top}.res th{background:#dfe6ee}
+.res code{background:#dfe6ee;border-radius:4px;padding:0 4px}
+.cf{background:#1d2b3a;border-radius:10px;margin:6px 0;color:#fff}.cf summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:6px 10px;font-weight:800;cursor:pointer}
+.cf summary button{padding:3px 10px;font-size:12px}.cf pre{background:#0f1a26;color:#d6e2f0;margin:0;border-radius:0 0 10px 10px;font:12px/1.4 ui-monospace,monospace;max-height:260px}
+.w.sub{background:#f4f7fa;margin:8px 0 0}.subs{margin-top:8px}
+.bb{max-width:85%;width:fit-content;background:#fff;border:1px solid var(--ln);border-radius:14px 14px 14px 4px;padding:6px 10px;margin:6px 0;white-space:pre-wrap}.bb small{display:block;font-weight:800;color:var(--mu)}
+.bb.me{margin-left:auto;background:#b3262d;color:#fff;border-color:#b3262d;border-radius:14px 14px 4px 14px}.bb.me small{color:#ffd3d3}
+.cl{max-height:38vh;overflow:auto;margin:8px 0}.cin{display:flex;gap:8px}.ob{margin:3px 0}
 </style></head><body>
 
 <div id="login" hidden><h1>🏢 Kantor AI</h1><p id="lmsg" class="m">Hanya pemilik yang bisa masuk.</p><button onclick="gl()">Masuk dengan Google</button></div>
@@ -59,8 +69,11 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 <div id="ws"></div></div>
 
 <div id="pt" hidden><h2>Beri tugas</h2><select id="tw"></select><textarea id="tt" placeholder="Contoh: Buatkan 5 ide nama toko kopi"></textarea><button onclick="addT()">Kirim tugas</button>
-<h2 style="margin-top:18px">Hasil kerja</h2><div id="ts"></div><h2 style="margin-top:18px">Obrolan kantor</h2><div id="lg"></div></div>
+<h2 style="margin-top:18px">Hasil kerja</h2><div id="ts"></div></div>
 
+<div id="pc" hidden><h2>Chat</h2><select id="cw" onchange="cv()"></select><div id="cl" class="cl"></div>
+<label class="m" id="cs"><input type="checkbox" id="ck" style="width:auto"> 📚 Simpan pesanku sebagai pelajaran</label>
+<div class="cin" id="ci"><input id="cm" placeholder="Ketik sebagai Bos Fahar..." onkeydown="if(event.key=='Enter')sendC()"><button onclick="sendC()">Kirim</button></div></div>
 <div id="pa" hidden><h2>Pengaturan</h2>
 <div class="f"><b>Jam kerja</b><div>Mulai jam <input class="h" id="h0" type="number" min="0" max="23" onchange="sh()"> sampai jam <input class="h" id="h1" type="number" min="1" max="24" onchange="sh()"></div>
 <div class="m">Di luar jam ini pekerja pergi ke ruang belajar, dan tugas menunggu sampai jam kerja. Isi 0 sampai 24 untuk kerja sepanjang hari.</div></div>
@@ -68,7 +81,7 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 <button class="g" id="lo" onclick="out()">Keluar</button></div>
 </div>
 
-<nav><button class="on" data-t="k" onclick="tab('k')"><span>🏢</span>Kantor</button><button data-t="w" onclick="tab('w')"><span>👥</span>Pekerja</button><button data-t="t" onclick="tab('t')"><span>📋</span>Tugas</button><button data-t="a" onclick="tab('a')"><span>⚙️</span>Atur</button></nav>
+<nav><button class="on" data-t="k" onclick="tab('k')"><span>🏢</span>Kantor</button><button data-t="w" onclick="tab('w')"><span>👥</span>Pekerja</button><button data-t="t" onclick="tab('t')"><span>📋</span>Tugas</button><button data-t="c" onclick="tab('c')"><span>💬</span>Chat</button><button data-t="a" onclick="tab('a')"><span>⚙️</span>Atur</button></nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -83,7 +96,7 @@ let S={w:[],t:[],h:[9,17],log:[]};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem('kantor')||'{}'))}catch(e){}
 let db,auth,tm;
 const save=()=>{try{localStorage.setItem('kantor',JSON.stringify(S))}catch(e){}
-  if(db){clearTimeout(tm);tm=setTimeout(()=>db.collection('kantor').doc('main').set(JSON.parse(JSON.stringify(S))).catch(e=>console.error(e)),800)}};
+  if(db){while(S.t.length>5&&JSON.stringify(S).length>850000)S.t.pop();clearTimeout(tm);tm=setTimeout(()=>db.collection('kantor').doc('main').set(JSON.parse(JSON.stringify(S))).catch(e=>console.error(e)),800)}};
 const P={groq:["https://api.groq.com/openai/v1/chat/completions","openai/gpt-oss-120b"],
 openrouter:["https://openrouter.ai/api/v1/chat/completions","meta-llama/llama-3.3-70b-instruct:free"],
 cerebras:["https://api.cerebras.ai/v1/chat/completions","llama3.1-8b"],
@@ -141,14 +154,14 @@ function sh(){S.h=[+$('h0').value,+$('h1').value];save();tick()}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));const ACT=['antri','jalan','review','tanya','tunggu'];
 const sp=w=>`Namamu ${w.name}. Pekerjaanmu: ${w.job}. ${LV[w.lv]}${(w.notes||[]).length?'\nCatatan pelajaran untukmu (terapkan!):\n- '+w.notes.slice(-8).join('\n- '):''}\nJawab dalam bahasa Indonesia.`;
 async function ai(w,sys,user){
-  const r=await fetch(P[w.prov][0],{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+w.key},body:JSON.stringify({model:w.model,messages:[{role:'system',content:sys},{role:'user',content:user}]})});
+  const r=await fetch(P[w.prov][0],{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+w.key},body:JSON.stringify({model:w.model,messages:[{role:'system',content:sys}].concat(typeof user=='string'?[{role:'user',content:user}]:user)})});
   if(r.status==429){w.used=w.limit;throw 'LIMIT'}
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error((j.error&&j.error.message)||'Error '+r.status);
   w.used++;return j.choices[0].message.content;
 }
 function say(w,to,txt,sec){tr(w.id).say={t:(to?'@'+to+': ':'')+txt.slice(0,90),u:Date.now()+(sec||9)*1000};
-  (S.log=S.log||[]).push({f:w.name,to:to||'',t:txt.slice(0,220)});if(S.log.length>40)S.log.shift()}
+  (S.log=S.log||[]).push({f:w.name,to:to||'',t:txt.slice(0,220)});if(S.log.length>150)S.log.shift()}
 function ans(id){const t=S.t.find(t=>t.id==id),a=prompt('Jawabanmu untuk pertanyaan:\n'+t.q);if(!a)return;
   t.task+='\n\nPertanyaanmu: '+t.q+'\nJawaban bos: '+a;t.s='antri';t.q='';save();tick()}
 function nts(id){alert(((S.w.find(w=>w.id==id).notes)||[]).map((n,i)=>(i+1)+'. '+n).join('\n\n')||'Belum ada catatan pelajaran.')}
@@ -221,7 +234,7 @@ function tick(){
 let sig='';
 function ui(){
   $('clk').textContent='🕘 '+new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+' · '+(inWork()?'Jam kerja':'Waktu belajar');
-  const k=JSON.stringify([S.w.map(w=>[w.id,w.st,w.used,w.busy,w.model,(w.notes||[]).length,w.ilmu]),S.t,(S.log||[]).length]);if(k==sig)return;sig=k;
+  const k=JSON.stringify([S.w.map(w=>[w.id,w.st,w.used,w.busy,w.model,(w.notes||[]).length,w.ilmu]),S.t,(S.log||[]).length,Object.values(S.chat||{}).reduce((a,c)=>a+c.length,0)]);if(k==sig)return;sig=k;
   $('ws').innerHTML=S.w.length?S.w.map(w=>`<div class="w" onclick="foc(${w.id})"><div class="av" style="background:hsl(${hu(w)},50%,50%)">${esc(w.name[0].toUpperCase())}</div>
     <div class="r1"><div class="t"><b>${esc(w.name)}</b><span class="chip ${w.st}">${IC[w.st]} ${w.st}</span></div>
     <div class="m">${LB[w.lv]} · ${esc(w.job)}<br>${w.prov}: ${esc(w.model)}<br>📖 ${(w.notes||[]).length} catatan · ilmu ${w.ilmu||0}</div><div class="bar"><i style="width:${Math.max(0,100-100*w.used/w.limit)}%"></i></div>
@@ -230,12 +243,55 @@ function ui(){
   if(S.w.some(w=>w.lv!='guru')&&!S.w.some(w=>w.lv=='guru'))$('ws').innerHTML+='<p class="m">💡 Tambahkan pekerja berlevel Guru supaya yang lain bisa belajar.</p>';
   const v=$('tw').value;$('tw').innerHTML=S.w.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join('');$('tw').value=v;
   const L={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal',tanya:'❓ bertanya ke Bos',tunggu:'⏳ menunggu tim',selesai:'📨 dilaporkan ke manajer'};
-  $('ts').innerHTML=S.t.length?S.t.map(t=>{const w=S.w.find(w=>w.id==t.wid);return`<div class="w"><div class="r1"><div class="t"><b>${t.par?'↳ ':''}${w?esc(w.name):'(dibuang)'}</b><span class="m">${L[t.s]}</span></div>
-    <div class="m">${esc(t.task.split('\n')[0])}</div>${t.s=='tanya'?`<div class="m">❓ ${esc(t.q)}</div><div class="acts"><button onclick="ans(${t.id})">Jawab</button></div>`:''}${t.out?`<pre>${esc(t.out)}</pre>`:''}
-    ${t.s=='review'?`<div class="acts"><button class="ok" onclick="acc(${t.id})">ACC</button><button class="g" onclick="rev(${t.id})">Revisi</button></div>`:''}</div></div>`}).join(''):'<p class="m">Belum ada tugas.</p>';
-  $('lg').innerHTML=(S.log||[]).slice(-15).reverse().map(l=>`<div class="m"><b>${esc(l.f)}</b>${l.to?' → '+esc(l.to):''}: ${esc(l.t)}</div>`).join('')||'<p class="m">Belum ada obrolan.</p>';
+  $('ts').innerHTML=S.t.filter(t=>!t.par).map(t=>card(t,0)).join('')||'<p class="m">Belum ada tugas.</p>';
+  const c0=$('cw').value;$('cw').innerHTML='<option value="0">📢 Obrolan kantor</option>'+S.w.map(w=>`<option value="${w.id}">💬 ${esc(w.name)}</option>`).join('');$('cw').value=c0||'0';cv();
 }
-function tab(n){['w','t','a'].forEach(x=>$('p'+x).hidden=x!=n);$('sh').classList.toggle('open',n!='k');
+const OP={},EX={js:'js',javascript:'js',jsx:'jsx',ts:'ts',typescript:'ts',py:'py',python:'py',html:'html',css:'css',json:'json',cs:'cs',csharp:'cs',java:'java',cpp:'cpp','c++':'cpp',c:'c',sh:'sh',bash:'sh',sql:'sql',php:'php',go:'go',yaml:'yml',xml:'xml'};
+const STL={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal',tanya:'❓ bertanya ke Bos',tunggu:'⏳ menunggu tim',selesai:'📨 dilaporkan ke manajer'};
+const CHATP='\nSekarang bosmu, Fahar, sedang mengobrol santai denganmu di waktu luang (bukan membahas tugas berat). Jawab natural seperti manusia, ramah, singkat (maksimal 4 kalimat). Kalau bos memberi pelajaran atau saran, ucapkan terima kasih dan sebut apa yang kamu pahami.';
+function files(o){const r=[],re=/```([\w+#-]*)[^\n]*\n([\s\S]*?)```/g;let m;while(m=re.exec(o))r.push({n:'kodingan'+(r.length+1)+'.'+(EX[(m[1]||'').toLowerCase()]||'txt'),c:m[2].replace(/\n$/,'')});return r}
+function md(s){
+  const L=esc(s).replace(/```[\s\S]*?```/g,'').split('\n'),o=[],inl=x=>x.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/&lt;br\s*\/?&gt;/g,'<br>'),tr=l=>/^\s*\|.*\|\s*$/.test(l||'');let i=0,m;
+  while(i<L.length){const l=L[i];
+    if(tr(l)&&/^\s*\|[\s:|-]+\|\s*$/.test(L[i+1]||'')){const r=[];while(i<L.length&&tr(L[i]))r.push(L[i++]);
+      const c=x=>x.trim().replace(/^\||\|$/g,'').split('|').map(y=>inl(y.trim()));
+      o.push('<div class="tw"><table><tr>'+c(r[0]).map(x=>'<th>'+x+'</th>').join('')+'</tr>'+r.slice(2).map(x=>'<tr>'+c(x).map(y=>'<td>'+y+'</td>').join('')+'</tr>').join('')+'</table></div>');continue}
+    if(m=/^(#{1,4})\s+(.*)/.exec(l))o.push('<h4 class="h'+m[1].length+'">'+inl(m[2])+'</h4>');
+    else if(/^\s*([-*]|\d+\.)\s+/.test(l))o.push('<div class="li">'+inl(l.trim().replace(/^[-*]\s+/,'• '))+'</div>');
+    else if(/^\s*(---+|___+)\s*$/.test(l))o.push('<hr>');
+    else if(l.trim())o.push('<p>'+inl(l)+'</p>');
+    i++}
+  return o.join('')}
+function cp(txt,b){const ok=()=>{const o=b.dataset.o||b.textContent;b.dataset.o=o;b.textContent='Tersalin ✓';setTimeout(()=>b.textContent=o,1300)};
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(ok).catch(()=>{const a=document.createElement('textarea');a.value=txt;document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){prompt('Salin manual:',txt)}a.remove()})}
+const cpt=(id,k,b)=>{const t=S.t.find(x=>x.id==id);cp(k<0?t.out:files(t.out)[k].c,b)};
+function tog(id){OP[id]=!OP[id];sig='';ui()}
+function card(t,n){
+  const w=S.w.find(x=>x.id==t.wid),subs=(t.subs||[]).map(id=>S.t.find(x=>x.id==id)).filter(Boolean),fl=t.out?files(t.out):[],ok=t.out&&t.s!='gagal';
+  return `<div class="w${n?' sub':''}"><div class="r1"><div class="t"><b>${n?'↳ ':''}${w?esc(w.name):'(dibuang)'}</b><span class="m">${STL[t.s]||t.s}</span></div>
+  <div class="m">${esc(t.task.split('\n')[0])}</div>
+  ${t.s=='tanya'?`<div class="m">❓ ${esc(t.q)}</div><div class="acts"><button onclick="ans(${t.id})">Jawab</button></div>`:''}
+  ${ok?`<div class="res">${md(t.out)}</div>`:t.out?`<pre>${esc(t.out)}</pre>`:''}
+  ${fl.map((f,k)=>`<details class="cf"><summary>📄 ${f.n}<button onclick="event.preventDefault();event.stopPropagation();cpt(${t.id},${k},this)">Salin</button></summary><pre>${esc(f.c)}</pre></details>`).join('')}
+  <div class="acts">${ok?`<button class="g" onclick="cpt(${t.id},-1,this)">Salin hasil</button>`:''}${t.s=='review'?`<button class="ok" onclick="acc(${t.id})">ACC</button><button class="g" onclick="rev(${t.id})">Revisi</button>`:''}${subs.length?`<button class="g" onclick="tog(${t.id})">${OP[t.id]?'▲':'▼'} Pekerjaan tim (${subs.length})</button>`:''}</div>
+  ${subs.length&&OP[t.id]?`<div class="subs">${subs.map(u=>card(u,1)).join('')}</div>`:''}</div></div>`}
+function cv(){
+  const id=+$('cw').value,box=$('cl');$('ci').hidden=$('cs').hidden=!id;
+  if(!id){box.innerHTML=(S.log||[]).slice().reverse().map(l=>`<div class="m ob"><b>${esc(l.f)}</b>${l.to?' → '+esc(l.to):''}: ${esc(l.t)}</div>`).join('')||'<p class="m">Belum ada obrolan.</p>';return}
+  const w=S.w.find(x=>x.id==id),h=(S.chat||{})[id]||[];if(!w)return;
+  box.innerHTML=h.map(x=>x.r=='u'?`<div class="bb me"><small>👑 Fahar</small>${esc(x.t)}</div>`:`<div class="bb"><small>${esc(w.name)}</small>${esc(x.t)}</div>`).join('')||'<p class="m">Belum ada percakapan. Sapa dulu! 👋</p>';
+  box.scrollTop=box.scrollHeight}
+async function sendC(){
+  const id=+$('cw').value,m=$('cm').value.trim(),w=S.w.find(x=>x.id==id);if(!w||!m)return;$('cm').value='';
+  S.chat=S.chat||{};const h=S.chat[id]=S.chat[id]||[];h.push({r:'u',t:m});(S.log=S.log||[]).push({f:'Fahar',to:w.name,t:m.slice(0,220)});
+  if($('ck').checked){(w.notes=w.notes||[]).push('Pelajaran dari Bos Fahar: '+m.slice(0,300));if(w.notes.length>12)w.notes.shift();w.ilmu=(w.ilmu||0)+1;$('ck').checked=false}
+  if(w.st=='istirahat'){h.push({r:'a',t:'💤 (sedang tidur, tenaganya habis)'});save();cv();return}
+  save();cv();
+  try{const q=h.slice(-10).map(x=>({role:x.r=='u'?'user':'assistant',content:x.t}));while(q[0]&&q[0].role=='assistant')q.shift();
+    const a=(await ai(w,sp(w)+CHATP,q)).trim();h.push({r:'a',t:a});say(w,'Fahar',a,10)}
+  catch(e){h.push({r:'a',t:e==='LIMIT'?'💤 Aku kehabisan tenaga, mau tidur dulu ya Bos.':'⚠️ '+String(e.message||e)})}
+  if(h.length>60)h.splice(0,h.length-60);save();tick();cv()}
+function tab(n){['w','t','c','a'].forEach(x=>$('p'+x).hidden=x!=n);if(n=='c')cv();$('sh').classList.toggle('open',n!='k');
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==n))}
 
 /* ---- kantor 3D ---- */
