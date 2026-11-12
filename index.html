@@ -46,6 +46,7 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 .bb{max-width:85%;width:fit-content;background:#fff;border:1px solid var(--ln);border-radius:14px 14px 14px 4px;padding:6px 10px;margin:6px 0;white-space:pre-wrap}.bb small{display:block;font-weight:800;color:var(--mu)}
 .bb.me{margin-left:auto;background:#b3262d;color:#fff;border-color:#b3262d;border-radius:14px 14px 4px 14px}.bb.me small{color:#ffd3d3}
 .cl{max-height:38vh;overflow:auto;margin:8px 0}.cin{display:flex;gap:8px}.ob{margin:3px 0}
+.nl{margin-top:8px}.nt{display:flex;gap:6px;align-items:flex-start;background:#f4f7fa;border-radius:8px;padding:6px 8px;margin:4px 0;font-size:12.5px}.nt span{flex:1}.nt button{padding:1px 8px;font-size:12px}
 </style></head><body>
 
 <div id="login" hidden><h1>🏢 Kantor AI</h1><p id="lmsg" class="m">Hanya pemilik yang bisa masuk.</p><button onclick="gl()">Masuk dengan Google</button></div>
@@ -100,7 +101,7 @@ const save=()=>{try{localStorage.setItem('kantor',JSON.stringify(S))}catch(e){}
 const P={groq:["https://api.groq.com/openai/v1/chat/completions","openai/gpt-oss-120b"],
 openrouter:["https://openrouter.ai/api/v1/chat/completions","meta-llama/llama-3.3-70b-instruct:free"],
 cerebras:["https://api.cerebras.ai/v1/chat/completions","llama3.1-8b"],
-gemini:["https://generativelanguage.googleapis.com/v1beta/openai/chat/completions","gemini-2.5-flash"],
+gemini:["https://generativelanguage.googleapis.com/v1beta/openai/chat/completions","gemini-3.6-flash"],
 mistral:["https://api.mistral.ai/v1/chat/completions","mistral-small-latest"]};
 const LV={bodoh:"Kamu pekerja pemula: jawab sederhana dan singkat, kadang kurang teliti.",sedang:"Kamu pekerja cukup kompeten: jawab jelas dan ringkas.",pintar:"Kamu pekerja ahli: jawab teliti dan terstruktur.",guru:"Kamu guru senior yang sangat pintar: jawab mendalam, benar, dan mudah dipahami.",manager:"Kamu manajer yang pintar: kamu menerima tugas besar dari bos, memecahnya menjadi tugas kecil untuk anggota tim, lalu menyatukan hasil mereka."};
 const LB={bodoh:'🌱 Pemula',sedang:'🙂 Sedang',pintar:'🧠 Pintar',guru:'🎓 Guru',manager:'👔 Manajer'},IC={kerja:'💻',belajar:'📚',istirahat:'💤',santai:'🌳'};const AC=['🏀','🏀','🎾','🎾','⚽','⚽','⛲','⛲'];
@@ -140,7 +141,7 @@ function addW(){
 }
 function delW(id){if(!confirm('Buang pekerja ini beserta tugasnya?'))return;S.w=S.w.filter(w=>w.id!=id);S.t=S.t.filter(t=>t.wid!=id);save();ui()}
 function mdl(id){const w=S.w.find(w=>w.id==id),m=prompt('Nama model baru untuk '+w.name+':',w.model);if(m&&m.trim()){w.model=m.trim();save();ui()}}
-function wake(id){S.w.find(w=>w.id==id).used=0;save();tick()}
+function wake(id){const w=S.w.find(w=>w.id==id);w.used=0;w.cool=0;w.n429=0;save();tick()}
 function addT(){
   const t=$('tt').value.trim(),w=$('tw').value;
   if(!t||!w)return alert('Pilih pekerja dan tulis tugasnya.');
@@ -154,17 +155,23 @@ function sh(){S.h=[+$('h0').value,+$('h1').value];save();tick()}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));const ACT=['antri','jalan','review','tanya','tunggu'];
 const sp=w=>`Namamu ${w.name}. Pekerjaanmu: ${w.job}. ${LV[w.lv]}${(w.notes||[]).length?'\nCatatan pelajaran untukmu (terapkan!):\n- '+w.notes.slice(-8).join('\n- '):''}\nJawab dalam bahasa Indonesia.`;
 async function ai(w,sys,user){
-  const r=await fetch(P[w.prov][0],{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+w.key},body:JSON.stringify({model:w.model,messages:[{role:'system',content:sys}].concat(typeof user=='string'?[{role:'user',content:user}]:user)})});
-  if(r.status==429){w.used=w.limit;throw 'LIMIT'}
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error((j.error&&j.error.message)||'Error '+r.status);
-  w.used++;return j.choices[0].message.content;
+  const ms=typeof user=='string'?[{role:'user',content:user}]:user,g=w.prov=='gemini';
+  const r=await fetch(g?'https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(w.model)+':generateContent':P[w.prov][0],{method:'POST',
+    headers:g?{'Content-Type':'application/json','x-goog-api-key':w.key}:{'Content-Type':'application/json',Authorization:'Bearer '+w.key},
+    body:JSON.stringify(g?{systemInstruction:{parts:[{text:sys}]},contents:ms.map(m=>({role:m.role=='user'?'user':'model',parts:[{text:m.content}]}))}:{model:w.model,messages:[{role:'system',content:sys}].concat(ms)})});
+  if(r.status==429){const ra=+r.headers.get('retry-after')||0;w.n429=(w.n429||0)+1;if(ra>300||w.n429>=4){w.used=w.limit;w.n429=0}else w.cool=Date.now()+(ra||60)*1000+3000;throw 'LIMIT'}
+  const j0=await r.json().catch(()=>({})),j=Array.isArray(j0)?j0[0]:j0;
+  if(!r.ok)throw new Error((j&&j.error&&j.error.message)||'Error '+r.status);
+  w.used++;w.n429=0;
+  if(g){const c=j.candidates&&j.candidates[0]&&j.candidates[0].content;return((c&&c.parts)||[]).map(x=>x.text||'').join('')||'(jawaban kosong)'}
+  return j.choices[0].message.content;
 }
 function say(w,to,txt,sec){tr(w.id).say={t:(to?'@'+to+': ':'')+txt.slice(0,90),u:Date.now()+(sec||9)*1000};
   (S.log=S.log||[]).push({f:w.name,to:to||'',t:txt.slice(0,220)});if(S.log.length>150)S.log.shift()}
 function ans(id){const t=S.t.find(t=>t.id==id),a=prompt('Jawabanmu untuk pertanyaan:\n'+t.q);if(!a)return;
   t.task+='\n\nPertanyaanmu: '+t.q+'\nJawaban bos: '+a;t.s='antri';t.q='';save();tick()}
-function nts(id){alert(((S.w.find(w=>w.id==id).notes)||[]).map((n,i)=>(i+1)+'. '+n).join('\n\n')||'Belum ada catatan pelajaran.')}
+const NO={};function nts(id){NO[id]=!NO[id];sig='';ui()}
+function dn(id,i){const w=S.w.find(x=>x.id==id);w.notes.splice(i,1);save();sig='';ui()}
 
 async function run(t){
   const w=S.w.find(x=>x.id==t.wid),r=tr(w.id);w.busy=1;t.s='jalan';ui();
@@ -224,7 +231,7 @@ async function learn(){
 /* istirahat jika tenaga habis, kerja saat jam kerja, selain itu belajar */
 function tick(){
   S.w.forEach(w=>{if(w.day!=day()){w.day=day();w.used=0}
-    w.st=w.used>=w.limit?'istirahat':!inWork()?'belajar':S.t.some(t=>t.wid==w.id&&ACT.includes(t.s))?'kerja':'santai';
+    w.st=w.used>=w.limit||w.cool>Date.now()?'istirahat':!inWork()?'belajar':S.t.some(t=>t.wid==w.id&&ACT.includes(t.s))?'kerja':'santai';
     if(w.st=='kerja'&&!w.busy){const t=S.t.slice().reverse().find(t=>t.wid==w.id&&t.s=='antri');if(t)run(t)}});
   S.t.forEach(t=>{if(t.s=='tunggu'&&t.subs){const u=t.subs.map(id=>S.t.find(x=>x.id==id)),m=S.w.find(x=>x.id==t.wid);
     if(!m||u.some(x=>!x||x.s=='gagal')){t.s='gagal';t.out='Ada sub-tugas yang gagal atau pekerja dibuang.';return}
@@ -239,17 +246,17 @@ function ui(){
     <div class="r1"><div class="t"><b>${esc(w.name)}</b><span class="chip ${w.st}">${IC[w.st]} ${w.st}</span></div>
     <div class="m">${LB[w.lv]} · ${esc(w.job)}<br>${w.prov}: ${esc(w.model)}<br>📖 ${(w.notes||[]).length} catatan · ilmu ${w.ilmu||0}</div><div class="bar"><i style="width:${Math.max(0,100-100*w.used/w.limit)}%"></i></div>
     <div class="m">Tenaga ${Math.max(0,w.limit-w.used)} dari ${w.limit}</div>
-    <div class="acts">${w.st=='istirahat'?`<button class="g" onclick="event.stopPropagation();wake(${w.id})">Bangunkan</button>`:''}<button class="g" onclick="event.stopPropagation();nts(${w.id})">Catatan</button><button class="g" onclick="event.stopPropagation();mdl(${w.id})">Model</button><button class="r" onclick="event.stopPropagation();delW(${w.id})">Buang</button></div></div></div>`).join(''):'<p class="m">Belum ada pekerja. Tekan + Tambah untuk membuat yang pertama.</p>';
+    <div class="acts">${w.st=='istirahat'?`<button class="g" onclick="event.stopPropagation();wake(${w.id})">Bangunkan</button>`:''}<button class="g" onclick="event.stopPropagation();nts(${w.id})">Catatan (${(w.notes||[]).length})</button><button class="g" onclick="event.stopPropagation();mdl(${w.id})">Model</button><button class="r" onclick="event.stopPropagation();delW(${w.id})">Buang</button></div>${NO[w.id]?`<div class="nl">${(w.notes||[]).map((n,i)=>`<div class="nt"><span>${esc(n)}</span><button class="r" onclick="event.stopPropagation();dn(${w.id},${i})">✕</button></div>`).join('')||'<div class="m">Belum ada catatan.</div>'}</div>`:''}</div></div>`).join(''):'<p class="m">Belum ada pekerja. Tekan + Tambah untuk membuat yang pertama.</p>';
   if(S.w.some(w=>w.lv!='guru')&&!S.w.some(w=>w.lv=='guru'))$('ws').innerHTML+='<p class="m">💡 Tambahkan pekerja berlevel Guru supaya yang lain bisa belajar.</p>';
   const v=$('tw').value;$('tw').innerHTML=S.w.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join('');$('tw').value=v;
   const L={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal',tanya:'❓ bertanya ke Bos',tunggu:'⏳ menunggu tim',selesai:'📨 dilaporkan ke manajer'};
   $('ts').innerHTML=S.t.filter(t=>!t.par).map(t=>card(t,0)).join('')||'<p class="m">Belum ada tugas.</p>';
   const c0=$('cw').value;$('cw').innerHTML='<option value="0">📢 Obrolan kantor</option>'+S.w.map(w=>`<option value="${w.id}">💬 ${esc(w.name)}</option>`).join('');$('cw').value=c0||'0';cv();
 }
-const OP={},EX={js:'js',javascript:'js',jsx:'jsx',ts:'ts',typescript:'ts',py:'py',python:'py',html:'html',css:'css',json:'json',cs:'cs',csharp:'cs',java:'java',cpp:'cpp','c++':'cpp',c:'c',sh:'sh',bash:'sh',sql:'sql',php:'php',go:'go',yaml:'yml',xml:'xml'};
+const OP={},EX={lua:'lua',luau:'lua',js:'js',javascript:'js',jsx:'jsx',ts:'ts',typescript:'ts',py:'py',python:'py',html:'html',css:'css',json:'json',cs:'cs',csharp:'cs',java:'java',cpp:'cpp','c++':'cpp',c:'c',sh:'sh',bash:'sh',sql:'sql',php:'php',go:'go',yaml:'yml',xml:'xml'};
 const STL={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal',tanya:'❓ bertanya ke Bos',tunggu:'⏳ menunggu tim',selesai:'📨 dilaporkan ke manajer'};
 const CHATP='\nSekarang bosmu, Fahar, sedang mengobrol santai denganmu di waktu luang (bukan membahas tugas berat). Jawab natural seperti manusia, ramah, singkat (maksimal 4 kalimat). Kalau bos memberi pelajaran atau saran, ucapkan terima kasih dan sebut apa yang kamu pahami.';
-function files(o){const r=[],re=/```([\w+#-]*)[^\n]*\n([\s\S]*?)```/g;let m;while(m=re.exec(o))r.push({n:'kodingan'+(r.length+1)+'.'+(EX[(m[1]||'').toLowerCase()]||'txt'),c:m[2].replace(/\n$/,'')});return r}
+function files(o){const r=[],re=/```([\w+#-]*)[^\n]*\n([\s\S]*?)```/g;let m;while(m=re.exec(o))r.push({n:'kodingan'+(r.length+1)+'.'+(EX[(m[1]||'').toLowerCase()]||(/game:GetService|\blocal\s|task\.wait/.test(m[2])?'lua':'txt')),c:m[2].replace(/\n$/,'')});return r}
 function md(s){
   const L=esc(s).replace(/```[\s\S]*?```/g,'').split('\n'),o=[],inl=x=>x.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/&lt;br\s*\/?&gt;/g,'<br>'),tr=l=>/^\s*\|.*\|\s*$/.test(l||'');let i=0,m;
   while(i<L.length){const l=L[i];
