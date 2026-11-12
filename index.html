@@ -338,15 +338,15 @@ function init3(){
   [[-14,-11.2],[14,-11.2],[0,3],[0,7],[-13.8,1.8],[13.8,1.8],[-5.6,-12.9],[5.6,-12.9]].forEach(p=>pl(p[0],p[1]));
   bx(12.8,.2,7.2,0xe9edf1,0,-.1,-15.8);bx(12.4,.04,7,0x9b2c2c,0,.02,-15.8);
   wl(.4,7.2,-6.4,-15.8,0x7a2323);wl(.4,7.2,6.4,-15.8,0x7a2323);wl(13.2,.4,0,-19.4,0x7a2323);
-  bx(4.2,.9,1.8,0x3b2a22,0,.45,-17.6);bx(4.4,.1,2,0x2a1d17,0,.95,-17.6);bx(1.2,.12,1.2,0x1a1a1a,0,.6,-18.6);bx(1.2,1.6,.2,0x1a1a1a,0,1.4,-19.1);
+  bx(4.2,.9,1.8,0x3b2a22,0,.45,-17);bx(4.4,.1,2,0x2a1d17,0,.95,-17);bx(1,.1,.9,0x1a1a1a,0,.4,-18.75);bx(1,1.6,.1,0x1a1a1a,0,1.2,-19.15);
   const sg=lab('👑 Bos Fahar',6,null,'#b3262d');sg.position.set(0,3.6,-17.5);Sc.add(sg);
-  const bf=mk({id:97});bf.position.set(0,0,-18.4);
+  const bf=mk({id:97});bf.position.set(0,-.1,-18.75);bf.p.ll.rotation.x=bf.p.rl.rotation.x=-1.45;bf.p.al.rotation.x=bf.p.ar.rotation.x=-1.2;
   /* taman & lapangan */
   bx(30,.2,15.2,0x9ccc85,0,-.1,20);bx(3.2,.05,8,0xd8cdb8,0,.03,17);
   wl(.4,15.2,-14.7,20,0x3f8f4a);wl(.4,15.2,14.7,20,0x3f8f4a);wl(30,.4,0,27.6,0x3f8f4a);
   ad(new THREE.CylinderGeometry(2.3,2.5,.5,24),0xb8bfc8,0,.25,20);ad(new THREE.CylinderGeometry(2,2,.1,24),0x6fb7e8,0,.52,20);
   ad(new THREE.CylinderGeometry(.25,.35,1.4,12),0xc9cfd6,0,1.2,20);ad(new THREE.CylinderGeometry(.9,.5,.25,16),0xb8bfc8,0,1.9,20);
-  bx(.5,.4,1.6,0x8b6b4a,-4.2,.3,20);bx(.5,.4,1.6,0x8b6b4a,4.2,.3,20);
+  bx(.5,.4,1.6,0x8b6b4a,-4.6,.3,20);bx(.5,.4,1.6,0x8b6b4a,4.6,.3,20);
   [[-12.5,13.6],[12.5,13.6],[-1.5,26.2],[1.5,26.2],[12.6,26]].forEach(t=>{ad(new THREE.CylinderGeometry(.25,.3,1.6,8),0x7a5a3c,t[0],.8,t[1]);ad(new THREE.SphereGeometry(1.3,10,8),0x3f9a5a,t[0],2.3,t[1])});
   bx(9,.05,7.2,0xd1803f,-9.5,.03,17.6);bx(.12,.06,7.2,0xffffff,-9.5,.07,17.6);
   [-13.6,-5.4].forEach(x=>{const f=x<-9?.35:-.35;ad(new THREE.CylinderGeometry(.08,.08,3.2,8),0x444b57,x,1.6,17.6);bx(.1,1,1.6,0xffffff,x+f,3.2,17.6);const r=ad(new THREE.TorusGeometry(.35,.04,6,14),0xff6a00,x+f*2.4,3,17.6);r.rotation.x=Math.PI/2});
@@ -364,7 +364,7 @@ function init3(){
   for(let i=0;i<8;i++){const a=sl(i),dz=a.kz-1.25;
     bx(2.6,.1,1.3,0xa07c54,a.kx,.85,dz);bx(.1,.8,1.2,0x6e5439,a.kx-1.2,.4,dz);bx(.1,.8,1.2,0x6e5439,a.kx+1.2,.4,dz);
     bx(1,.6,.06,0x20262e,a.kx,1.3,dz-.3);bx(.12,.3,.12,0x555555,a.kx,1,dz-.3);bx(.7,.04,.25,0x3a4350,a.kx,.92,dz+.2);
-    bx(.8,.1,.8,0x2f5d7c,a.kx,.55,a.kz+.5);bx(.8,.8,.1,0x2f5d7c,a.kx,1,a.kz+.9);
+    bx(.8,.1,.8,0x2f5d7c,a.kx,.4,a.kz);bx(.8,.8,.1,0x2f5d7c,a.kx,.85,a.kz+.45);
     bx(2,.7,1.1,0xc7a46a,a.sx,.35,a.sz);bx(.5,.09,.38,0xc8473f,a.sx-.4,.75,a.sz);bx(.5,.09,.38,0x3b6ea5,a.sx+.4,.75,a.sz);
     bx(1.8,.4,2.6,0x7a5a3c,a.bx,.2,a.bz);bx(1.65,.22,2.4,0xf2f4f8,a.bx,.5,a.bz);bx(1,.14,.5,0xffffff,a.bx,.68,a.bz-.9);bx(1.7,.14,1.4,PAL[i%5],a.bx,.66,a.bz+.45)}
   [['Ruang kerja',-10,3.4,-11.5],['Ruang belajar',-7.5,3.4,.8],['Kamar tidur',7.5,3.4,.8],['Taman & lapangan',0,3.4,12.6]].forEach(l=>{const s=lab(l[0],4.2);s.position.set(l[1],l[2],l[3]);Sc.add(s)});
@@ -391,18 +391,19 @@ function mk(w){
   const g=new THREE.Group(),h=(w.id%97)/97,sk=[0xf1c9a5,0xd9a273,0xb07a4f,0x8a5a3a][w.id%4],hr=[0x2b1d14,0x5a3a1f,0x1b1b1b,0xc9a24a][(w.id>>2)%4],
     sh=new THREE.Color().setHSL(h,.55,.5).getHex(),pn=new THREE.Color().setHSL((h+.55)%1,.4,.32).getHex(),
     B=(a,b,c,col,x,y,z,p)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(a,b,c),mat(col));m.position.set(x,y,z);m.castShadow=true;(p||g).add(m)},
-    L=(x,y,wd,col)=>{const q=new THREE.Group();q.position.set(x,y,0);B(wd,.7,wd,col,0,-.35,0,q);g.add(q);return q};
-  g.p={ll:L(-.13,.7,.25,pn),rl:L(.13,.7,.25,pn),al:L(-.37,1.4,.2,sh),ar:L(.37,1.4,.2,sh)};
+    L=(x,y,wd,col,len)=>{const q=new THREE.Group(),n=len||.7;q.position.set(x,y,0);B(wd,n,wd,col,0,-n/2,0,q);g.add(q);return q};
+  g.p={ll:L(-.13,.7,.25,pn),rl:L(.13,.7,.25,pn),al:L(-.37,1.4,.2,sh,.48),ar:L(.37,1.4,.2,sh,.48)};
   B(.2,.22,.2,sk,0,-.59,0,g.p.al);B(.2,.22,.2,sk,0,-.59,0,g.p.ar);
   B(.5,.7,.25,sh,0,1.05,0);B(.5,.5,.5,sk,0,1.65,0);
-  B(.54,.16,.54,hr,0,1.94,0);B(.54,.34,.12,hr,0,1.76,-.21);B(.5,.1,.04,hr,0,1.86,.25);
+  B(.54,.16,.54,hr,0,1.94,0);B(.54,.34,.12,hr,0,1.76,-.21);B(.54,.1,.05,hr,0,1.85,.255);
   B(.12,.1,.02,0xffffff,-.12,1.66,.26);B(.12,.1,.02,0xffffff,.12,1.66,.26);B(.06,.1,.03,0x2b3a8a,-.1,1.66,.27);B(.06,.1,.03,0x2b3a8a,.1,1.66,.27);B(.14,.04,.02,0x7a3b2e,0,1.52,.26);
   Sc.add(g);return g}
 const TR={},tr=id=>TR[id]||(TR[id]={}),zn=p=>p.z<-12.4?'b':p.z<.8?'o':p.z<12.4?'l':'p',ZS='bolp';let BL=()=>{};const CT=[];
 function pth(a,b,lx){const d=lx>0?7:-7,sg=[[[0,-13.4],[0,-10.8]],[[d,-1.2],[d,2.6]],[[0,11.2],[0,13.6]]],i=ZS.indexOf(a),j=ZS.indexOf(b),r=[];
   if(i<j)for(let k=i;k<j;k++)r.push(...sg[k]);else for(let k=i-1;k>=j;k--)r.push(...sg[k].slice().reverse());return r}
+const FACE=[-1.5708,1.5708,0,Math.PI,1.5708,-1.5708,1.5708,-1.5708];
 const SPT=[[-10,17.5],[-7.5,19],[8.8,16.3],[8.8,21.8],[-9,24.2],[-6,25.2],[-3.6,20],[3.6,20]];
-const hm=w=>{const i=S.w.indexOf(w),a=sl(i);return w.st=='kerja'?[a.kx,0,a.kz]:w.st=='istirahat'?[a.bx,.98,a.bz+.7]:w.st=='santai'?[SPT[i%8][0],0,SPT[i%8][1]]:[a.sx,0,a.sz+1]};
+const hm=w=>{const i=S.w.indexOf(w),a=sl(i);return w.st=='kerja'?[a.kx,0,a.kz]:w.st=='istirahat'?[a.bx,.86,a.bz+.7]:w.st=='santai'?[SPT[i%8][0],0,SPT[i%8][1]]:[a.sx,0,a.sz+1]};
 function tg(w){
   if(w.st=='istirahat')return hm(w);
   if(w.st=='kerja'&&S.t.some(t=>t.wid==w.id&&(t.s=='review'||t.s=='tanya')))return[-4.5+S.w.indexOf(w)*1.3,0,-15];
@@ -426,10 +427,16 @@ function loop(){
     if(g.wp&&g.wp.length){px=g.wp[0][0];pz=g.wp[0][1];if(Math.hypot(px-g.position.x,pz-g.position.z)<.3)g.wp.shift()}
     const dx=px-g.position.x,dz=pz-g.position.z,dd=Math.hypot(dx,dz);
     if(dd>.05){const s=Math.min(.12,dd);g.position.x+=dx/dd*s;g.position.z+=dz/dd*s}
-    g.position.y+=(T[1]+(w.st=='santai'&&dd<.3?Math.abs(Math.sin(Date.now()/230+w.id%7))*.28:0)-g.position.y)*.12;g.rotation.x+=((w.st=='istirahat'?-1.5708:0)-g.rotation.x)*.08;
-    g.rotation.y+=((w.st=='istirahat'?0:Math.PI)-g.rotation.y)*.1;
-    {const tt=Date.now()/1000+w.id%7,sw=Math.sin(tt*9)*.8,Q=g.p;let al=0,ar=0,ll=0,rl=0;
-    if(w.st!='istirahat'){if(dd>.08){al=sw;ar=-sw;ll=-sw;rl=sw}else if(w.st=='kerja'){al=-1.3+Math.sin(tt*10)*.1;ar=-1.3+Math.cos(tt*10)*.1}else if(w.st=='santai'){al=Math.sin(tt*6)*1.1;ar=-al*.6}}
+    const tt=Date.now()/1000+w.id%7,at=!(g.wp&&g.wp.length)&&dd<.3,mv=dd>.08,dk=sl(S.w.indexOf(w)),
+      ly=w.st=='istirahat'&&at,sit=w.st=='kerja'&&at&&Math.hypot(g.position.x-dk.kx,g.position.z-dk.kz)<.4,
+      o=S.w.find(x=>x.id==tr(w.id).vis)||S.w.find(x=>tr(x.id).vis==w.id&&G[x.id]);
+    g.position.y+=((ly?T[1]:sit?-.1:0)+(w.st=='santai'&&at?Math.abs(Math.sin(tt*5))*.28:0)-g.position.y)*.12;
+    g.rotation.x+=((ly?-1.5708:0)-g.rotation.x)*.1;
+    let hd=Math.PI;
+    if(ly)hd=0;else if(mv)hd=Math.atan2(dx,dz);else if(o&&G[o.id])hd=Math.atan2(G[o.id].position.x-g.position.x,G[o.id].position.z-g.position.z);else if(w.st=='santai')hd=FACE[S.w.indexOf(w)%8];
+    g.rotation.y+=(((hd-g.rotation.y+Math.PI)%6.2832+6.2832)%6.2832-Math.PI)*.15;
+    {const sw=Math.sin(tt*9)*.8,Q=g.p;let al=0,ar=0,ll=0,rl=0;
+    if(!ly){if(mv){al=sw;ar=-sw;ll=-sw;rl=sw}else if(sit){al=-1.3+Math.sin(tt*10)*.1;ar=-1.3+Math.cos(tt*10)*.1;ll=rl=-1.45}else if(o){al=-.6+Math.sin(tt*6)*.5}else if(w.st=='santai'&&at){al=Math.sin(tt*6)*1.1;ar=-al*.6}}
     Q.al.rotation.x+=(al-Q.al.rotation.x)*.25;Q.ar.rotation.x+=(ar-Q.ar.rotation.x)*.25;Q.ll.rotation.x+=(ll-Q.ll.rotation.x)*.25;Q.rl.rotation.x+=(rl-Q.rl.rotation.x)*.25}
     const y=tr(w.id).say,bt=y&&Date.now()<y.u?y.t:'';
     if(g.bt!=bt){if(g.b)g.remove(g.b);g.b=null;g.bt=bt;if(bt){g.b=bub(bt);g.b.position.set(0,3.8,0);g.add(g.b)}}
