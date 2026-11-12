@@ -154,12 +154,13 @@ function sh(){S.h=[+$('h0').value,+$('h1').value];save();tick()}
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));const ACT=['antri','jalan','review','tanya','tunggu'];
 const sp=w=>`Namamu ${w.name}. Pekerjaanmu: ${w.job}. ${LV[w.lv]}${(w.notes||[]).length?'\nCatatan pelajaran untukmu (terapkan!):\n- '+w.notes.slice(-8).join('\n- '):''}\nJawab dalam bahasa Indonesia.`;
-async function ai(w,sys,user){
+async function ai(w,sys,user,k){
   const ms=typeof user=='string'?[{role:'user',content:user}]:user,g=w.prov=='gemini';
   const r=await fetch(g?'https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(w.model)+':generateContent':P[w.prov][0],{method:'POST',
     headers:g?{'Content-Type':'application/json','x-goog-api-key':w.key}:{'Content-Type':'application/json',Authorization:'Bearer '+w.key},
     body:JSON.stringify(g?{systemInstruction:{parts:[{text:sys}]},contents:ms.map(m=>({role:m.role=='user'?'user':'model',parts:[{text:m.content}]}))}:{model:w.model,messages:[{role:'system',content:sys}].concat(ms)})});
   if(r.status==429){const ra=+r.headers.get('retry-after')||0;w.n429=(w.n429||0)+1;if(ra>300||w.n429>=4){w.used=w.limit;w.n429=0}else w.cool=Date.now()+(ra||60)*1000+3000;throw 'LIMIT'}
+  if([500,502,503,504].includes(r.status)&&(k||0)<3){await sleep(4000*((k||0)+1));return ai(w,sys,user,(k||0)+1)}
   const j0=await r.json().catch(()=>({})),j=Array.isArray(j0)?j0[0]:j0;
   if(!r.ok)throw new Error((j&&j.error&&j.error.message)||'Error '+r.status);
   w.used++;w.n429=0;
@@ -233,6 +234,14 @@ function tick(){
   S.w.forEach(w=>{if(w.day!=day()){w.day=day();w.used=0}
     w.st=w.used>=w.limit||w.cool>Date.now()?'istirahat':!inWork()?'belajar':S.t.some(t=>t.wid==w.id&&ACT.includes(t.s))?'kerja':'santai';
     if(w.st=='kerja'&&!w.busy){const t=S.t.slice().reverse().find(t=>t.wid==w.id&&t.s=='antri');if(t)run(t)}});
+  const cnt=x=>S.t.filter(t=>t.wid==x.id&&ACT.includes(t.s)).length;
+  S.t.forEach(u=>{if(!u.par||!(u.s=='antri'||u.s=='gagal'))return;
+    const w=S.w.find(x=>x.id==u.wid);
+    if(!(u.s=='antri'&&(!w||w.st=='istirahat'))&&!(u.s=='gagal'&&(u.re||0)<2))return;
+    const sb=S.w.filter(x=>x.id!=u.mid&&x.id!=u.wid&&!(u.was||[]).includes(x.id)&&x.st!='istirahat').sort((a,b)=>cnt(a)-cnt(b))[0],m=S.w.find(x=>x.id==u.mid);
+    if(!sb||!m)return;
+    (u.was=u.was||[]).push(u.wid);u.re=(u.re||0)+1;u.wid=sb.id;u.s='antri';u.out='';
+    say(m,sb.name,(w?w.name+(w.st=='istirahat'?' sedang tidur':' gagal'):'Pekerja tidak ada')+', tolong gantikan: '+u.task.slice(0,60))});
   S.t.forEach(t=>{if(t.s=='tunggu'&&t.subs){const u=t.subs.map(id=>S.t.find(x=>x.id==id)),m=S.w.find(x=>x.id==t.wid);
     if(!m||u.some(x=>!x||x.s=='gagal')){t.s='gagal';t.out='Ada sub-tugas yang gagal atau pekerja dibuang.';return}
     if(u.every(x=>x.s=='selesai')&&m.st=='kerja'&&!m.busy)compile(t)}});
@@ -276,7 +285,7 @@ function tog(id){OP[id]=!OP[id];sig='';ui()}
 function card(t,n){
   const w=S.w.find(x=>x.id==t.wid),subs=(t.subs||[]).map(id=>S.t.find(x=>x.id==id)).filter(Boolean),fl=t.out?files(t.out):[],ok=t.out&&t.s!='gagal';
   return `<div class="w${n?' sub':''}"><div class="r1"><div class="t"><b>${n?'↳ ':''}${w?esc(w.name):'(dibuang)'}</b><span class="m">${STL[t.s]||t.s}</span></div>
-  <div class="m">${esc(t.task.split('\n')[0])}</div>
+  <div class="m">${esc(t.task.split('\n')[0])}</div>${(t.was||[]).length?'<div class="m">🔁 dialihkan dari '+t.was.map(id=>{const x=S.w.find(y=>y.id==id);return x?esc(x.name):'?'}).join(', ')+'</div>':''}
   ${t.s=='tanya'?`<div class="m">❓ ${esc(t.q)}</div><div class="acts"><button onclick="ans(${t.id})">Jawab</button></div>`:''}
   ${ok?`<div class="res">${md(t.out)}</div>`:t.out?`<pre>${esc(t.out)}</pre>`:''}
   ${fl.map((f,k)=>`<details class="cf"><summary>📄 ${f.n}<button onclick="event.preventDefault();event.stopPropagation();cpt(${t.id},${k},this)">Salin</button></summary><pre>${esc(f.c)}</pre></details>`).join('')}
@@ -378,16 +387,22 @@ const PL=[['Ruang kerja',0,-6,28],['Ruang belajar',-7.5,6.5,15],['Kamar tidur',7
 function pn(d){pi=(pi+d+PL.length)%PL.length;const p=PL[pi];gx=p[1];gz=p[2];gd=Math.min(80,Math.max(14,p[3]/(.93*Cam.aspect)));pit=1.15;yaw=0;$('pnm').textContent=p[0];$('pnb').classList.toggle('bos',pi==3)}
 function foc(id){const g=G[id];if(!g)return;gx=g.position.x;gz=g.position.z;gd=13;tab('k')}
 function rs(){R.setSize(innerWidth,innerHeight);Cam.aspect=innerWidth/innerHeight;Cam.updateProjectionMatrix();gd0=Math.min(100,Math.max(55,36/(.93*Cam.aspect)));gd=dist=gd0;gz=tz=4}
-function mk(w){const g=new THREE.Group(),c=new THREE.Color().setHSL((w.id%97)/97,.5,.5).getHex();
-  const b=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,1.1,14),mat(c));b.position.y=.55;
-  const h=new THREE.Mesh(new THREE.SphereGeometry(.3,14,10),mat(0xf1c9a5));h.position.y=1.4;
-  const e1=new THREE.Mesh(new THREE.SphereGeometry(.05,6,6),mat(0x222222));e1.position.set(-.11,1.45,.27);const e2=e1.clone();e2.position.x=.11;
-  g.add(b,h,e1,e2);g.traverse(o=>o.castShadow=true);Sc.add(g);return g}
+function mk(w){
+  const g=new THREE.Group(),h=(w.id%97)/97,sk=[0xf1c9a5,0xd9a273,0xb07a4f,0x8a5a3a][w.id%4],hr=[0x2b1d14,0x5a3a1f,0x1b1b1b,0xc9a24a][(w.id>>2)%4],
+    sh=new THREE.Color().setHSL(h,.55,.5).getHex(),pn=new THREE.Color().setHSL((h+.55)%1,.4,.32).getHex(),
+    B=(a,b,c,col,x,y,z,p)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(a,b,c),mat(col));m.position.set(x,y,z);m.castShadow=true;(p||g).add(m)},
+    L=(x,y,wd,col)=>{const q=new THREE.Group();q.position.set(x,y,0);B(wd,.7,wd,col,0,-.35,0,q);g.add(q);return q};
+  g.p={ll:L(-.13,.7,.25,pn),rl:L(.13,.7,.25,pn),al:L(-.37,1.4,.2,sh),ar:L(.37,1.4,.2,sh)};
+  B(.2,.22,.2,sk,0,-.59,0,g.p.al);B(.2,.22,.2,sk,0,-.59,0,g.p.ar);
+  B(.5,.7,.25,sh,0,1.05,0);B(.5,.5,.5,sk,0,1.65,0);
+  B(.54,.16,.54,hr,0,1.94,0);B(.54,.34,.12,hr,0,1.76,-.21);B(.5,.1,.04,hr,0,1.86,.25);
+  B(.12,.1,.02,0xffffff,-.12,1.66,.26);B(.12,.1,.02,0xffffff,.12,1.66,.26);B(.06,.1,.03,0x2b3a8a,-.1,1.66,.27);B(.06,.1,.03,0x2b3a8a,.1,1.66,.27);B(.14,.04,.02,0x7a3b2e,0,1.52,.26);
+  Sc.add(g);return g}
 const TR={},tr=id=>TR[id]||(TR[id]={}),zn=p=>p.z<-12.4?'b':p.z<.8?'o':p.z<12.4?'l':'p',ZS='bolp';let BL=()=>{};const CT=[];
 function pth(a,b,lx){const d=lx>0?7:-7,sg=[[[0,-13.4],[0,-10.8]],[[d,-1.2],[d,2.6]],[[0,11.2],[0,13.6]]],i=ZS.indexOf(a),j=ZS.indexOf(b),r=[];
   if(i<j)for(let k=i;k<j;k++)r.push(...sg[k]);else for(let k=i-1;k>=j;k--)r.push(...sg[k].slice().reverse());return r}
 const SPT=[[-10,17.5],[-7.5,19],[8.8,16.3],[8.8,21.8],[-9,24.2],[-6,25.2],[-3.6,20],[3.6,20]];
-const hm=w=>{const i=S.w.indexOf(w),a=sl(i);return w.st=='kerja'?[a.kx,0,a.kz]:w.st=='istirahat'?[a.bx,.98,a.bz+.5]:w.st=='santai'?[SPT[i%8][0],0,SPT[i%8][1]]:[a.sx,0,a.sz+1]};
+const hm=w=>{const i=S.w.indexOf(w),a=sl(i);return w.st=='kerja'?[a.kx,0,a.kz]:w.st=='istirahat'?[a.bx,.98,a.bz+.7]:w.st=='santai'?[SPT[i%8][0],0,SPT[i%8][1]]:[a.sx,0,a.sz+1]};
 function tg(w){
   if(w.st=='istirahat')return hm(w);
   if(w.st=='kerja'&&S.t.some(t=>t.wid==w.id&&(t.s=='review'||t.s=='tanya')))return[-4.5+S.w.indexOf(w)*1.3,0,-15];
@@ -413,10 +428,13 @@ function loop(){
     if(dd>.05){const s=Math.min(.12,dd);g.position.x+=dx/dd*s;g.position.z+=dz/dd*s}
     g.position.y+=(T[1]+(w.st=='santai'&&dd<.3?Math.abs(Math.sin(Date.now()/230+w.id%7))*.28:0)-g.position.y)*.12;g.rotation.x+=((w.st=='istirahat'?-1.5708:0)-g.rotation.x)*.08;
     g.rotation.y+=((w.st=='istirahat'?0:Math.PI)-g.rotation.y)*.1;
+    {const tt=Date.now()/1000+w.id%7,sw=Math.sin(tt*9)*.8,Q=g.p;let al=0,ar=0,ll=0,rl=0;
+    if(w.st!='istirahat'){if(dd>.08){al=sw;ar=-sw;ll=-sw;rl=sw}else if(w.st=='kerja'){al=-1.3+Math.sin(tt*10)*.1;ar=-1.3+Math.cos(tt*10)*.1}else if(w.st=='santai'){al=Math.sin(tt*6)*1.1;ar=-al*.6}}
+    Q.al.rotation.x+=(al-Q.al.rotation.x)*.25;Q.ar.rotation.x+=(ar-Q.ar.rotation.x)*.25;Q.ll.rotation.x+=(ll-Q.ll.rotation.x)*.25;Q.rl.rotation.x+=(rl-Q.rl.rotation.x)*.25}
     const y=tr(w.id).say,bt=y&&Date.now()<y.u?y.t:'';
-    if(g.bt!=bt){if(g.b)g.remove(g.b);g.b=null;g.bt=bt;if(bt){g.b=bub(bt);g.b.position.set(0,3.5,0);g.add(g.b)}}
+    if(g.bt!=bt){if(g.b)g.remove(g.b);g.b=null;g.bt=bt;if(bt){g.b=bub(bt);g.b.position.set(0,3.8,0);g.add(g.b)}}
     const ic=w.st=='santai'?AC[S.w.indexOf(w)%8]:IC[w.st],p=1-w.used/w.limit,txt=w.name+' '+ic+'|'+Math.round(p*10);
-    if(g.txt!=txt){if(g.l)g.remove(g.l);g.txt=txt;g.l=lab(w.name+' '+ic+(w.st=='istirahat'?' zzz':''),2.8,p);g.l.position.set(0,2.2,0);g.add(g.l)}});
+    if(g.txt!=txt){if(g.l)g.remove(g.l);g.txt=txt;g.l=lab(w.name+' '+ic+(w.st=='istirahat'?' zzz':''),2.8,p);g.l.position.set(0,2.55,0);g.add(g.l)}});
   Object.keys(G).forEach(id=>{if(!S.w.some(w=>w.id==id)){Sc.remove(G[id]);delete G[id]}});
   dist+=(gd-dist)*.15;tx+=(gx-tx)*.08;tz+=(gz-tz)*.08;
   Cam.position.set(tx+Math.sin(yaw)*Math.cos(pit)*dist,Math.sin(pit)*dist,tz+Math.cos(yaw)*Math.cos(pit)*dist);Cam.lookAt(tx,0,tz);
