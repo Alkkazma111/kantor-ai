@@ -47,10 +47,13 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 .bb.me{margin-left:auto;background:#b3262d;color:#fff;border-color:#b3262d;border-radius:14px 14px 4px 14px}.bb.me small{color:#ffd3d3}
 .cl{max-height:38vh;overflow:auto;margin:8px 0}.cin{display:flex;gap:8px}.ob{margin:3px 0}
 .nl{margin-top:8px}.nt{display:flex;gap:6px;align-items:flex-start;background:#f4f7fa;border-radius:8px;padding:6px 8px;margin:4px 0;font-size:12.5px}.nt span{flex:1}.nt button{padding:1px 8px;font-size:12px}
+#prv{position:fixed;inset:0;z-index:20;background:#fff;display:flex;flex-direction:column}#prv iframe{flex:1;border:0;width:100%}
+.pvh{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--ink);color:#fff}
 </style></head><body>
 
 <div id="login" hidden><h1>🏢 Kantor AI</h1><p id="lmsg" class="m">Hanya pemilik yang bisa masuk.</p><button onclick="gl()">Masuk dengan Google</button></div>
 
+<div id="prv" hidden><div class="pvh"><b>👁 Pratinjau gambar</b><button onclick="$('prv').hidden=true;$('prf').srcdoc=''">Tutup</button></div><iframe id="prf" sandbox="allow-scripts"></iframe></div>
 <div id="cv"></div>
 <div class="top"><span class="pill">🏢 Kantor AI</span><span class="pill" id="clk"></span></div>
 <div class="fab"><button onclick="zoom(.8)">+</button><button onclick="zoom(1.25)">−</button><button onclick="rst()">⟲</button></div>
@@ -79,7 +82,8 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 <div class="f"><b>Jam kerja</b><div>Mulai jam <input class="h" id="h0" type="number" min="0" max="23" onchange="sh()"> sampai jam <input class="h" id="h1" type="number" min="1" max="24" onchange="sh()"></div>
 <div class="m">Di luar jam ini pekerja pergi ke ruang belajar, dan tugas menunggu sampai jam kerja. Isi 0 sampai 24 untuk kerja sepanjang hari.</div></div>
 <div class="f"><b>Cara bergerak di kantor</b><div class="m">Satu jari: putar. Dua jari: cubit untuk zoom, geser untuk pindah. Tekan kartu pekerja untuk melihat dia di kantor.</div></div>
-<div class="f"><b>🕌 Jadwal sholat (WIB)</b><div id="pt" class="m">Memuat...</div><div class="m">Sholat berjamaah dipimpin Direktur Fahar di Musala, otomatis saat waktunya tiba (web harus terbuka). Arah kiblat dalam simulasi ini ke utara.</div><button class="g" onclick="sholat('Dzuhur')">Uji coba sholat berjamaah</button></div><button class="g" id="lo" onclick="out()">Keluar</button></div>
+<div class="f"><b>🎨 Pelajaran bawaan</b><div class="m">Menanamkan cara membuat gambar bagus hanya dengan HTML/SVG, dikirim lewat kode, ke semua pekerja. Tidak memakai kuota API.</div><button class="g" onclick="ajarGambar()">Tanamkan pelajaran gambar HTML</button></div>
+<div class="f"><b>🕌 Jadwal sholat (WIB)</b><div id="pjt" class="m">Memuat...</div><div class="m">Sholat berjamaah dipimpin Direktur Fahar di Musala, otomatis saat waktunya tiba (web harus terbuka). Arah kiblat dalam simulasi ini ke utara.</div><button class="g" onclick="sholat('Dzuhur')">Uji coba sholat berjamaah</button></div><button class="g" id="lo" onclick="out()">Keluar</button></div>
 </div>
 
 <nav><button class="on" data-t="k" onclick="tab('k')"><span>🏢</span>Kantor</button><button data-t="w" onclick="tab('w')"><span>👥</span>Pekerja</button><button data-t="t" onclick="tab('t')"><span>📋</span>Tugas</button><button data-t="c" onclick="tab('c')"><span>💬</span>Chat</button><button data-t="a" onclick="tab('a')"><span>⚙️</span>Atur</button></nav>
@@ -245,7 +249,7 @@ function tick(){
   S.t.forEach(t=>{if(t.s=='tunggu'&&t.subs){const u=t.subs.map(id=>S.t.find(x=>x.id==id)),m=S.w.find(x=>x.id==t.wid);
     if(!m||u.some(x=>!x||x.s=='gagal')){t.s='gagal';t.out='Ada sub-tugas yang gagal atau pekerja dibuang.';return}
     if(u.every(x=>x.s=='selesai')&&m.st=='kerja'&&!m.busy)compile(t)}});
-  ui();sky();loadSholat();cekSholat();const pe=$('pt');if(pe)pe.textContent=Object.keys(PRT).map(k=>k+' '+PRT[k]).join(' · ')+' ('+PRS+')';if(!inWork())learn();
+  ui();sky();loadSholat();cekSholat();const pe=$('pjt');if(pe)pe.textContent=Object.keys(PRT).map(k=>k+' '+PRT[k]).join(' · ')+' ('+PRS+')';if(!inWork())learn();
 }
 let sig='';
 function ui(){
@@ -262,10 +266,20 @@ function ui(){
   $('ts').innerHTML=S.t.filter(t=>!t.par).map(t=>card(t,0)).join('')||'<p class="m">Belum ada tugas.</p>';
   const c0=$('cw').value;$('cw').innerHTML='<option value="0">📢 Obrolan kantor</option>'+S.w.map(w=>`<option value="${w.id}">💬 ${esc(w.name)}</option>`).join('');$('cw').value=c0||'0';cv();
 }
-const OP={},EX={lua:'lua',luau:'lua',js:'js',javascript:'js',jsx:'jsx',ts:'ts',typescript:'ts',py:'py',python:'py',html:'html',css:'css',json:'json',cs:'cs',csharp:'cs',java:'java',cpp:'cpp','c++':'cpp',c:'c',sh:'sh',bash:'sh',sql:'sql',php:'php',go:'go',yaml:'yml',xml:'xml'};
+const OP={},EX={svg:'svg',lua:'lua',luau:'lua',js:'js',javascript:'js',jsx:'jsx',ts:'ts',typescript:'ts',py:'py',python:'py',html:'html',css:'css',json:'json',cs:'cs',csharp:'cs',java:'java',cpp:'cpp','c++':'cpp',c:'c',sh:'sh',bash:'sh',sql:'sql',php:'php',go:'go',yaml:'yml',xml:'xml'};
 const STL={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal',tanya:'❓ bertanya ke Bos',tunggu:'⏳ menunggu tim',selesai:'📨 dilaporkan ke manajer'};
 const CHATP='\nSekarang bosmu, Fahar, sedang mengobrol santai denganmu di waktu luang (bukan membahas tugas berat). Jawab natural seperti manusia, ramah, singkat (maksimal 4 kalimat). Kalau bos memberi pelajaran atau saran, ucapkan terima kasih dan sebut apa yang kamu pahami.';
-function files(o){const r=[],re=/```([\w+#-]*)[^\n]*\n([\s\S]*?)```/g;let m;while(m=re.exec(o))r.push({n:'kodingan'+(r.length+1)+'.'+(EX[(m[1]||'').toLowerCase()]||(/game:GetService|\blocal\s|task\.wait/.test(m[2])?'lua':'txt')),c:m[2].replace(/\n$/,'')});return r}
+const ext=(l,c)=>EX[(l||'').toLowerCase()]||(/^\s*<svg/i.test(c)?'svg':/^\s*<(!doctype html|html)/i.test(c)?'html':/game:GetService|\blocal\s|task\.wait/.test(c)?'lua':'txt');
+function pvw(id,k){const t=S.t.find(x=>x.id==id),f=files(t.out)[k];let c=f.c;
+  if(/\.svg$/.test(f.n)||/^\s*<svg/i.test(c))c='<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#fff">'+c;
+  $('prf').srcdoc=c;$('prv').hidden=false}
+const LGB=['Membuat gambar: tulis SATU file HTML mandiri dalam satu blok kode ```html (tanpa library dan tanpa URL gambar luar). Gambar dengan SVG inline (pakai viewBox) atau canvas. Beri judul kecil dan pusatkan gambar.',
+  'Kualitas gambar: ikuti prompt persis (objek, gaya, warna, suasana). Susun lapisan: latar, objek utama, detail, cahaya. Pakai gradien, opacity, dan filter SVG (blur) untuk kedalaman. Tambahkan detail kecil agar hidup.'],
+  LGR={manager:'Untuk tugas gambar: minta tiap anggota membuat satu file HTML terpisah, lalu laporan akhir berisi satu blok ```html per gambar beserta keterangan singkat siapa yang membuat.',
+  guru:'Saat mengajar gambar HTML: koreksi komposisi, proporsi, warna, dan detail hasil murid, lalu beri contoh potongan SVG pendek (maksimal 5 baris) untuk memperbaikinya.'};
+function ajarGambar(){let n=0;S.w.forEach(w=>{w.notes=w.notes||[];LGB.concat(LGR[w.lv]?[LGR[w.lv]]:[]).forEach(l=>{if(!w.notes.includes(l)){w.notes.push(l);n++}});while(w.notes.length>12)w.notes.shift();w.ilmu=(w.ilmu||0)+1});
+  save();sig='';ui();alert(S.w.length?'Pelajaran gambar HTML ditanamkan ke '+S.w.length+' pekerja ('+n+' catatan baru).':'Belum ada pekerja.')}
+function files(o){const r=[],re=/```([\w+#-]*)[^\n]*\n([\s\S]*?)```/g;let m;while(m=re.exec(o))r.push({n:'kodingan'+(r.length+1)+'.'+ext(m[1],m[2]),c:m[2].replace(/\n$/,'')});return r}
 function md(s){
   const L=esc(s).replace(/```[\s\S]*?```/g,'').split('\n'),o=[],inl=x=>x.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/&lt;br\s*\/?&gt;/g,'<br>'),tr=l=>/^\s*\|.*\|\s*$/.test(l||'');let i=0,m;
   while(i<L.length){const l=L[i];
@@ -288,7 +302,7 @@ function card(t,n){
   <div class="m">${esc(t.task.split('\n')[0])}</div>${(t.was||[]).length?'<div class="m">🔁 dialihkan dari '+t.was.map(id=>{const x=S.w.find(y=>y.id==id);return x?esc(x.name):'?'}).join(', ')+'</div>':''}
   ${t.s=='tanya'?`<div class="m">❓ ${esc(t.q)}</div><div class="acts"><button onclick="ans(${t.id})">Jawab</button></div>`:''}
   ${ok?`<div class="res">${md(t.out)}</div>`:t.out?`<pre>${esc(t.out)}</pre>`:''}
-  ${fl.map((f,k)=>`<details class="cf"><summary>📄 ${f.n}<button onclick="event.preventDefault();event.stopPropagation();cpt(${t.id},${k},this)">Salin</button></summary><pre>${esc(f.c)}</pre></details>`).join('')}
+  ${fl.map((f,k)=>`<details class="cf"><summary>📄 ${f.n}<span>${/\.(html|svg)$/.test(f.n)?`<button onclick="event.preventDefault();event.stopPropagation();pvw(${t.id},${k})">👁 Pratinjau</button> `:''}<button onclick="event.preventDefault();event.stopPropagation();cpt(${t.id},${k},this)">Salin</button></span></summary><pre>${esc(f.c)}</pre></details>`).join('')}
   <div class="acts">${ok?`<button class="g" onclick="cpt(${t.id},-1,this)">Salin hasil</button>`:''}${t.s=='review'?`<button class="ok" onclick="acc(${t.id})">ACC</button><button class="g" onclick="rev(${t.id})">Revisi</button>`:''}${subs.length?`<button class="g" onclick="tog(${t.id})">${OP[t.id]?'▲':'▼'} Pekerjaan tim (${subs.length})</button>`:''}</div>
   ${subs.length&&OP[t.id]?`<div class="subs">${subs.map(u=>card(u,1)).join('')}</div>`:''}</div></div>`}
 function cv(){
