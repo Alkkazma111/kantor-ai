@@ -72,7 +72,7 @@ pre{white-space:pre-wrap;font:inherit;background:#eef2f6;border-radius:10px;padd
 <button onclick="addW()">Tambah pekerja</button></div>
 <div id="ws"></div></div>
 
-<div id="pt" hidden><h2>Beri tugas</h2><select id="tw"></select><textarea id="tt" placeholder="Contoh: Buatkan 5 ide nama toko kopi"></textarea><button onclick="addT()">Kirim tugas</button><h2 style="margin-top:18px">🗣️ Rapat</h2><input id="rt" placeholder="Masalah yang dibahas, misal: cara mempercepat proyek"><button onclick="startRapat()" style="margin-top:8px">Adakan rapat</button>
+<div id="pt" hidden><h2>Beri tugas</h2><select id="tw"></select><textarea id="tt" placeholder="Contoh: Buatkan 5 ide nama toko kopi"></textarea><button onclick="addT()">Kirim tugas</button><h2 style="margin-top:18px">🗣️ Rapat</h2><input id="rt" placeholder="Masalah yang dibahas, misal: cara mempercepat proyek"><select id="rl" style="margin-top:8px"></select><div class="m">Pemimpin rapat hanya manajer. Peserta diurutkan dari yang paling pintar: model (Gemini diprioritaskan), catatan, dan level.</div><button onclick="startRapat()" style="margin-top:8px">Adakan rapat</button>
 <h2 style="margin-top:18px">Hasil kerja</h2><div id="ts"></div></div>
 
 <div id="pc" hidden><h2>Chat</h2><select id="cw" onchange="cv()"></select><div id="cl" class="cl"></div>
@@ -184,9 +184,10 @@ async function run(t){
     const cs=S.w.filter(x=>x.id!=w.id),nm0=cs.map(x=>x.name+' ('+x.job+')').concat('Fahar (bos)').join(', ');
     const ask=t.qa?'':` Kalau benar-benar butuh bantuan, kamu boleh bertanya SATU kali dengan membalas HANYA satu baris: TANYA: <nama>: <pertanyaan>. Pilihan nama: ${nm0}. Kalau tidak perlu, langsung kerjakan tugasnya.`;
     if(w.lv=='manager'&&!t.plan&&cs.length){
-      const raw=await ai(w,sp(w),`Tugas besar dari bos: "${t.task}"\nAnggota tim: ${cs.map(x=>x.name+' (pekerjaan: '+x.job+', level '+x.lv+')').join('; ')}.\nPecah menjadi 2 sampai 4 tugas kecil yang cocok untuk anggota tim. Balas HANYA JSON array seperti [{"nama":"Budi","tugas":"..."}], tanpa teks lain.`);
+      const raw=await ai(w,sp(w),`Tugas besar dari bos: "${t.task}"\nAnggota tim: ${cs.map(x=>x.name+' (pekerjaan: '+x.job+', level '+x.lv+')').join('; ')}.\nBagi menjadi tugas kecil, SATU tugas untuk SETIAP anggota tim (semua anggota harus kebagian), sesuai keahlian masing-masing. Balas HANYA JSON array seperti [{"nama":"Budi","tugas":"..."}], tanpa teks lain.`);
       let arr=[];try{arr=JSON.parse(raw.replace(/```json|```/g,'').match(/\[[\s\S]*\]/)[0])}catch(e){}
-      const subs=[];arr.slice(0,4).forEach((it,k)=>{const c=cs.find(x=>x.name.toLowerCase()==String(it.nama).toLowerCase());if(c&&it.tugas){const u={id:Date.now()+k+1,wid:c.id,task:String(it.tugas),out:'',s:'antri',par:t.id,mid:w.id};S.t.unshift(u);subs.push(u.id);say(w,c.name,'Tolong kerjakan: '+String(it.tugas))}});
+      const subs=[];arr.forEach((it,k)=>{const c=cs.find(x=>x.name.toLowerCase()==String(it.nama).toLowerCase());if(c&&it.tugas){const u={id:Date.now()+k+1,wid:c.id,task:String(it.tugas),out:'',s:'antri',par:t.id,mid:w.id};S.t.unshift(u);subs.push(u.id);say(w,c.name,'Tolong kerjakan: '+String(it.tugas))}});
+      cs.forEach((c,k)=>{if(!subs.some(id=>{const u=S.t.find(x=>x.id==id);return u&&u.wid==c.id})){const u={id:Date.now()+50+k,wid:c.id,task:'Bantu tugas besar "'+t.task.slice(0,80)+'": tinjau bagian yang sesuai keahlianmu ('+c.job+') lalu beri saran atau tambahan yang berguna.',out:'',s:'antri',par:t.id,mid:w.id};S.t.unshift(u);subs.push(u.id);say(w,c.name,'Kamu juga ikut membantu ya.')}});
       t.plan=1;
       if(subs.length){t.subs=subs;t.s='tunggu';w.busy=0;save();tick();return}
     }
@@ -236,8 +237,8 @@ async function learn(){
 /* istirahat jika tenaga habis, kerja saat jam kerja, selain itu belajar */
 function tick(){
   S.w.forEach(w=>{if(w.day!=day()){w.day=day();w.used=0}
-    w.st=w.used>=w.limit||w.cool>Date.now()?'istirahat':!inWork()?'belajar':S.t.some(t=>t.wid==w.id&&ACT.includes(t.s))?'kerja':'santai';
-    if(w.st=='kerja'&&!w.busy){const t=S.t.slice().reverse().find(t=>t.wid==w.id&&t.s=='antri');if(t)run(t)}});
+    w.st=w.used>=w.limit||w.cool>Date.now()?'istirahat':!inWork()?'belajar':new Date().getHours()==12?'santai':'kerja';
+    if(w.st=='kerja'&&!w.busy&&S.w.filter(x=>x.busy).length<3){const t=S.t.slice().reverse().find(t=>t.wid==w.id&&t.s=='antri');if(t)run(t)}});
   const cnt=x=>S.t.filter(t=>t.wid==x.id&&ACT.includes(t.s)).length;
   S.t.forEach(u=>{if(!u.par||!(u.s=='antri'||u.s=='gagal'))return;
     const w=S.w.find(x=>x.id==u.wid);
@@ -261,7 +262,7 @@ function ui(){
     <div class="m">Tenaga ${Math.max(0,w.limit-w.used)} dari ${w.limit}</div>
     <div class="acts">${w.st=='istirahat'?`<button class="g" onclick="event.stopPropagation();wake(${w.id})">Bangunkan</button>`:''}<button class="g" onclick="event.stopPropagation();nts(${w.id})">Catatan (${(w.notes||[]).length})</button><button class="g" onclick="event.stopPropagation();mdl(${w.id})">Model</button><button class="r" onclick="event.stopPropagation();delW(${w.id})">Buang</button></div>${NO[w.id]?`<div class="nl">${(w.notes||[]).map((n,i)=>`<div class="nt"><span>${esc(n)}</span><button class="r" onclick="event.stopPropagation();dn(${w.id},${i})">✕</button></div>`).join('')||'<div class="m">Belum ada catatan.</div>'}</div>`:''}</div></div>`).join(''):'<p class="m">Belum ada pekerja. Tekan + Tambah untuk membuat yang pertama.</p>';
   if(S.w.some(w=>w.lv!='guru')&&!S.w.some(w=>w.lv=='guru'))$('ws').innerHTML+='<p class="m">💡 Tambahkan pekerja berlevel Guru supaya yang lain bisa belajar.</p>';
-  const v=$('tw').value;$('tw').innerHTML=S.w.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join('');$('tw').value=v;
+  const v=$('tw').value;$('tw').innerHTML=S.w.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join('');$('tw').value=v;const rl0=$('rl').value,mg=S.w.filter(w=>w.lv=='manager').sort((a,b)=>iq(b)-iq(a));$('rl').innerHTML=mg.length?mg.map(w=>`<option value="${w.id}">${esc(w.name)} · 👔 Manajer</option>`).join(''):'<option value="0">Belum ada manajer (otomatis: paling pintar)</option>';$('rl').value=rl0;if(!$('rl').value)$('rl').selectedIndex=0;
   const L={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal',tanya:'❓ bertanya ke Bos',tunggu:'⏳ menunggu tim',selesai:'📨 dilaporkan ke manajer'};
   $('ts').innerHTML=S.t.filter(t=>!t.par).map(t=>card(t,0)).join('')||'<p class="m">Belum ada tugas.</p>';
   const c0=$('cw').value;$('cw').innerHTML='<option value="0">📢 Obrolan kantor</option>'+S.w.map(w=>`<option value="${w.id}">💬 ${esc(w.name)}</option>`).join('');$('cw').value=c0||'0';cv();
@@ -269,6 +270,8 @@ function ui(){
 const OP={},EX={svg:'svg',lua:'lua',luau:'lua',js:'js',javascript:'js',jsx:'jsx',ts:'ts',typescript:'ts',py:'py',python:'py',html:'html',css:'css',json:'json',cs:'cs',csharp:'cs',java:'java',cpp:'cpp','c++':'cpp',c:'c',sh:'sh',bash:'sh',sql:'sql',php:'php',go:'go',yaml:'yml',xml:'xml'};
 const STL={antri:'⏳ menunggu',jalan:'✍️ dikerjakan',review:'👀 perlu persetujuan',acc:'✅ disetujui',gagal:'⚠️ gagal',tanya:'❓ bertanya ke Bos',tunggu:'⏳ menunggu tim',selesai:'📨 dilaporkan ke manajer'};
 const CHATP='\nSekarang bosmu, Fahar, sedang mengobrol santai denganmu di waktu luang (bukan membahas tugas berat). Jawab natural seperti manusia, ramah, singkat (maksimal 4 kalimat). Kalau bos memberi pelajaran atau saran, ucapkan terima kasih dan sebut apa yang kamu pahami.';
+const mscore=w=>({gemini:50,groq:30,openrouter:25,mistral:25,cerebras:20}[w.prov]||10)+(/120b|70b|pro|large|3\.[5-9]/i.test(w.model)?15:/flash|27b|32b/i.test(w.model)?8:0)-(/lite|small|mini|nano|(^|\D)(8|20)b/i.test(w.model)?5:0),
+  iq=w=>mscore(w)+({guru:12,pintar:8,manager:6,sedang:3}[w.lv]||0)+(w.notes||[]).length*3+(w.ilmu||0);
 const ext=(l,c)=>EX[(l||'').toLowerCase()]||(/^\s*<svg/i.test(c)?'svg':/^\s*<(!doctype html|html)/i.test(c)?'html':/game:GetService|\blocal\s|task\.wait/.test(c)?'lua':'txt');
 function pvw(id,k){const t=S.t.find(x=>x.id==id),f=files(t.out)[k];let c=f.c;
   if(/\.svg$/.test(f.n)||/^\s*<svg/i.test(c))c='<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#fff">'+c;
@@ -522,20 +525,22 @@ function tg(w){
   if(w.st=='kerja'&&S.t.some(t=>t.wid==w.id&&(t.s=='review'||t.s=='tanya')))return[-4.5+S.w.indexOf(w)*1.3,0,-15];
   const o=S.w.find(x=>x.id==tr(w.id).vis);if(o){const h=hm(o);return[h[0]+1.2,0,h[2]]}
   return hm(w)}
-function startRapat(){const t=$('rt').value.trim();if(!t)return alert('Tulis masalah yang dibahas dulu.');$('rt').value='';rapat(t)}
-async function rapat(topic){
+function startRapat(){const t=$('rt').value.trim();if(!t)return alert('Tulis masalah yang dibahas dulu.');$('rt').value='';rapat(t,+$('rl').value||0)}
+async function rapat(topic,lid){
   if(MT)return alert('Rapat sedang berlangsung.');
-  const ps=S.w.filter(w=>w.st!='istirahat'&&!w.busy).slice(0,6);if(ps.length<2)return alert('Butuh minimal 2 pekerja yang bangun dan tidak sedang sibuk.');
-  MT={ids:ps.map(w=>w.id),topic,pres:0};ps.forEach(w=>w.busy=1);SCR.title='Rapat: '+topic.slice(0,22);SCR.lines=['Peserta berkumpul...'];ui();const tx=[];
+  const av=S.w.filter(w=>w.st!='istirahat'&&!w.busy).sort((a,b)=>iq(b)-iq(a));let pr=lid?av.find(w=>w.id==lid):null;
+  if(lid&&!pr){pr=av.find(w=>w.lv=='manager');if(!pr)return alert('Manajer yang dipilih sedang tidur atau sibuk, dan tidak ada manajer lain yang bisa memimpin.')}
+  const ps=(pr?[pr].concat(av.filter(w=>w!==pr)):av).slice(0,6);if(ps.length<2)return alert('Butuh minimal 2 pekerja yang bangun dan tidak sedang sibuk.');if(!pr)pr=ps[0];
+  MT={ids:ps.map(w=>w.id),topic,pres:0};(S.log=S.log||[]).push({f:'Rapat',to:'',t:'Pemimpin: '+pr.name+'. Peserta: '+ps.map(w=>w.name).join(', ')});say(pr,'Rapat','Saya yang memimpin rapat: '+topic.slice(0,50),8);ps.forEach(w=>w.busy=1);SCR.title='Rapat: '+topic.slice(0,22);SCR.lines=['Peserta berkumpul...'];ui();const tx=[];
   try{
     await sleep(11000);
-    const pr=ps.find(w=>w.lv=='manager')||ps[0];MT.pres=pr.id;SCR.lines=['Presentasi dimulai...'];await sleep(5000);
+    MT.pres=pr.id;SCR.lines=['Presentasi dimulai...'];await sleep(5000);
     try{const sl=(await ai(pr,sp(pr),`Kamu akan presentasi di rapat. Topik: "${topic}". Buat materi slide: baris pertama judul (maks 6 kata), lalu 3 poin singkat, tiap poin diawali "- " (maks 8 kata). Tanpa teks lain.`)).trim(),
         ls=sl.split('\n').map(x=>x.replace(/^[-*•#\d.\s]+/,'').replace(/\*\*/g,'').trim()).filter(Boolean);
       SCR.title=(ls[0]||topic).slice(0,30);SCR.lines=ls.slice(1,5);say(pr,'Rapat','Saya presentasikan: '+SCR.title,9);tx.push(pr.name+' (presentasi): '+ls.join('; '))}catch(e){}
     await sleep(11000);MT.pres=0;
     for(const w of ps.filter(x=>x!==pr)){try{const a=(await ai(w,sp(w),`Kamu sedang rapat kantor. Topik: "${topic}".${tx.length?'\nUcapan sebelumnya:\n'+tx.join('\n'):''}\nBerikan pendapat atau tanggapanmu, maksimal 2 kalimat.`)).trim();tx.push(w.name+': '+a);say(w,'Rapat',a,10);await sleep(6000)}catch(e){}}
-    if(tx.length){const m=ps.find(w=>w.lv=='manager')||ps[0],n=(await ai(m,sp(m),`Buat notulen rapat singkat (keputusan dan tindak lanjut) dari topik "${topic}" dan ucapan berikut:\n${tx.join('\n')}`)).trim();
+    if(tx.length){const m=pr,n=(await ai(m,sp(m),`Buat notulen rapat singkat (keputusan dan tindak lanjut) dari topik "${topic}" dan ucapan berikut:\n${tx.join('\n')}`)).trim();
       S.t.unshift({id:Date.now(),wid:m.id,task:'📋 Rapat: '+topic,out:n,s:'review'});say(m,'Rapat','Notulen rapat sudah dibuat.',8)}
   }catch(e){}
   ps.forEach(w=>w.busy=0);MT=null;SCR.title='';SCR.lines=[];save();tick()}
